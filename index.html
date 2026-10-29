@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Phone App</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -11,23 +11,80 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Phone App">
 <style>
-  body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;text-align:center;padding:16px}
-  button{font-size:1.2rem;padding:12px 24px;border:0;border-radius:12px;background:#38bdf8;color:#0f172a;margin-top:16px}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;
+       padding:calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+  main{max-width:480px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:1.8rem}
+  #mode{margin:0 0 20px;color:#94a3b8;font-size:.9rem}
+  form{display:flex;gap:8px}
+  input{flex:1;min-width:0;font-size:1.1rem;padding:12px;border-radius:12px;border:1px solid #334155;background:#1e293b;color:inherit}
+  button{font-size:1.1rem;padding:12px 18px;border:0;border-radius:12px;background:#38bdf8;color:#0f172a;font-weight:600}
+  ul{list-style:none;padding:0;margin:20px 0 0}
+  li{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;background:#1e293b;margin-bottom:8px}
+  li span{flex:1;word-break:break-word}
+  li.done span{text-decoration:line-through;color:#64748b}
+  li input[type=checkbox]{flex:none;width:22px;height:22px;accent-color:#38bdf8}
+  li .del{background:none;color:#f87171;padding:4px 8px;font-size:1.2rem}
+  #empty{color:#64748b;text-align:center;margin-top:32px}
+  #count{color:#94a3b8;font-size:.9rem;margin-top:12px}
 </style>
 </head>
 <body>
 <main>
-  <h1>זה עובד 🎉</h1>
-  <p id="mode">האתר מתעדכן מכל דחיפה לגיטהאב.</p>
-  <button id="b">לחצו: 0</button>
+  <h1>המשימות שלי ✅</h1>
+  <p id="mode">נשמר בטלפון שלך, עובד גם בלי אינטרנט.</p>
+  <form id="f">
+    <input id="t" placeholder="מה צריך לעשות?" autocomplete="off" enterkeyhint="done">
+    <button>הוסף</button>
+  </form>
+  <ul id="list"></ul>
+  <p id="empty">אין משימות. תוסיף את הראשונה 👆</p>
+  <p id="count"></p>
 </main>
 <script>
-  let n = 0;
-  const b = document.getElementById('b');
-  b.onclick = () => { b.textContent = 'לחצו: ' + (++n); };
-  if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
-    document.getElementById('mode').textContent = 'אתה בתוך האפליקציה 📱';
+  const KEY = 'tasks';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch {} };
+  let tasks = load();
+
+  const list = document.getElementById('list');
+  const input = document.getElementById('t');
+
+  function render() {
+    list.replaceChildren(...tasks.map(task => {
+      const li = document.createElement('li');
+      li.className = task.done ? 'done' : '';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = task.done;
+      box.onchange = () => { task.done = box.checked; save(); render(); };
+      const text = document.createElement('span');
+      text.textContent = task.text;
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = '✕';
+      del.setAttribute('aria-label', 'מחק');
+      del.onclick = () => { tasks = tasks.filter(x => x !== task); save(); render(); };
+      li.append(box, text, del);
+      return li;
+    }));
+    document.getElementById('empty').hidden = tasks.length > 0;
+    const left = tasks.filter(x => !x.done).length;
+    document.getElementById('count').textContent = tasks.length ? `נשארו ${left} מתוך ${tasks.length}` : '';
   }
+
+  document.getElementById('f').onsubmit = e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    tasks.unshift({ text, done: false });
+    input.value = '';
+    save();
+    render();
+  };
+
+  render();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
